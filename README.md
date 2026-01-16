@@ -107,6 +107,10 @@ ml-inference-platform/
 │   │   ├── services/
 │   │   │   ├── __init__.py
 │   │   │   └── inference_service.py
+│   │   ├── observability/
+│   │   │    ├── __init__.py
+│   │   │    ├── metrics.py           # Prometheus metrics
+│   │   │    └── health.py            # internal health checks
 │   │   └── utils/
 │   │       └── __init__.py
 │   ├── tests/
