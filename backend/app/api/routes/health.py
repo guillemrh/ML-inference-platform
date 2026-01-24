@@ -18,10 +18,10 @@ logger = get_logger(__name__)
 async def health_check() -> Dict[str, str]:
     """
     Basic health check endpoint.
-    
+
     Returns:
         Status object indicating service is operational
-    
+
     Notes:
         - Must be fast (<10ms)
         - No heavy dependencies
