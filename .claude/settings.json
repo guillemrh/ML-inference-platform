@@ -1,0 +1,21 @@
+{
+  "project": {
+    "name": "ml-inference-platform",
+    "description": "Production-oriented ML inference system"
+  },
+  "permissions": {
+    "askBeforeCodeChanges": true,
+    "askBeforeBranchCreation": true,
+    "askBeforeDockerCommands": true,
+    "askBeforePush": true
+  },
+  "testing": {
+    "strict": true,
+    "requireTestsForMerge": true,
+    "runTestsAfterChanges": true
+  },
+  "docker": {
+    "preferDocker": true,
+    "composeFile": "docker-compose.yml"
+  }
+}

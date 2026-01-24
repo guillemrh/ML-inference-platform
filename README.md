@@ -80,9 +80,24 @@ All components run in Docker containers and communicate over a private Docker ne
 6. Metrics and logs are emitted
 
 ---
-## Project structure
+## Project Structure
 ```
 ml-inference-platform/
+│
+├── CLAUDE.md                       # Claude Code project context
+├── .claude/                        # Claude Code configuration
+│   ├── settings.json
+│   └── commands/                   # Slash commands (/test, /lint, etc.)
+│
+├── .agents/                        # AI agents and skills
+│   ├── agents/                     # Subagent definitions
+│   │   ├── model-reviewer.md       # Reviews ML model code
+│   │   └── api-reviewer.md         # Reviews API code
+│   └── skills/                     # Best practices documentation
+│       ├── coding/                 # Python standards, testing
+│       ├── inference/              # ML inference patterns
+│       └── workflows/              # Docker, PR workflow
+│
 ├── backend/
 │   ├── app/
 │   │   ├── main.py
@@ -199,6 +214,33 @@ Metrics focus on:
 
 ---
 
+## AI-Assisted Development
+
+This project uses Claude Code for AI-assisted development with:
+
+### Commands
+| Command | Description |
+|---------|-------------|
+| `/test` | Run pytest in Docker container |
+| `/lint` | Run ruff linter and formatter |
+| `/add-endpoint` | Scaffold a new API endpoint |
+
+### Subagents
+| Agent | Model | Purpose |
+|-------|-------|---------|
+| `model-reviewer` | opus | Reviews ML model code for inference best practices |
+| `api-reviewer` | sonnet | Reviews API code for production readiness |
+
+### Skills
+Best practices documentation organized by domain:
+- **coding/** - Python standards, testing patterns
+- **inference/** - Model loading, latency, schemas
+- **workflows/** - Docker, PR workflow
+
+See [CLAUDE.md](CLAUDE.md) for full project context and [.agents/](.agents/) for agent/skill details.
+
+---
+
 ## Technology Stack
 
 - **Language:** Python
@@ -207,6 +249,7 @@ Metrics focus on:
 - **Metrics:** Prometheus-compatible
 - **Containers:** Docker + docker-compose
 - **Testing:** pytest
+- **AI Assistance:** Claude Code
 
 ---
 
