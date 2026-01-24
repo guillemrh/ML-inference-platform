@@ -6,14 +6,17 @@ This is the main application file that:
 - Creates the FastAPI app
 - Registers routes
 - Handles startup/shutdown lifecycle
+- Loads ML model at startup
 """
 
 from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
+from app.api.routes import health, inference
 from app.core.config import settings
-from app.core.logging import setup_logging, get_logger
-from app.api.routes import health
+from app.core.logging import get_logger, setup_logging
+from app.models import ModelLoadError, get_model
 
 logger = get_logger(__name__)
 
@@ -23,7 +26,7 @@ async def lifespan(app: FastAPI):
     """
     Application lifecycle manager.
 
-    Handles startup and shutdown logic.
+    Handles startup and shutdown logic, including model loading.
     """
     # Startup
     logger.info(
@@ -35,6 +38,21 @@ async def lifespan(app: FastAPI):
             }
         },
     )
+
+    # Load model
+    try:
+        model = get_model()
+        model.load()
+        logger.info(
+            "Model loaded at startup",
+            extra={"extra_fields": {"model_version": model.version}},
+        )
+    except ModelLoadError as e:
+        logger.error(
+            "Failed to load model at startup",
+            extra={"extra_fields": {"error": str(e)}},
+        )
+        # Don't fail startup - allow health checks to report degraded state
 
     yield
 
@@ -63,6 +81,7 @@ def create_app() -> FastAPI:
 
     # Register routes
     app.include_router(health.router, tags=["health"])
+    app.include_router(inference.router, tags=["inference"])
 
     return app
 

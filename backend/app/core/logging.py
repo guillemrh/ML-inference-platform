@@ -1,11 +1,53 @@
 import logging
+import sys
+import json
+from datetime import datetime
+
+from app.core.config import settings
 
 
-def setup_logging(log_level: str) -> None:
-    logging.basicConfig(
-        level=log_level,
-        format="%(asctime)s %(levelname)s %(name)s %(message)s",
-    )
+class StructuredFormatter(logging.Formatter):
+    def format(self, record: logging.LogRecord) -> str:
+        # Create a dictionary instead of a string
+        log_data = {
+            "timestamp": datetime.utcnow().isoformat() + "Z",
+            "level": record.levelname,
+            "logger": record.name,
+            "message": record.getMessage(),
+        }
+
+        # Add exception info if present
+        if record.exc_info:
+            log_data["exception"] = self.formatException(record.exc_info)
+
+        # If the log call included extra fields, add them
+        if hasattr(record, "extra_fields"):
+            log_data.update(record.extra_fields)
+
+        # Convert dictionary to JSON string
+        return json.dumps(log_data)
+
+
+def setup_logging() -> None:
+    """
+    Configure root logger with structured output.
+
+    Call this once at application startup.
+    """
+    root_logger = logging.getLogger()
+    root_logger.setLevel(getattr(logging, settings.log_level))
+
+    # Remove any existing handlers
+    for handler in root_logger.handlers[:]:
+        root_logger.removeHandler(handler)
+
+    # Add structured handler to stdout
+    handler = logging.StreamHandler(sys.stdout)
+    handler.setFormatter(StructuredFormatter())
+    root_logger.addHandler(handler)
+
+    # Silence overly verbose libraries
+    logging.getLogger("uvicorn.access").setLevel(logging.WARNING)
 
 
 def get_logger(name: str) -> logging.Logger:

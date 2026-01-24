@@ -7,16 +7,22 @@ services:
       dockerfile: Dockerfile
     container_name: ml-inference-backend
     ports:
-      - "8000:8000"
+      - "8003:8000" 
     environment:
       - APP_NAME=ml-inference-platform
       - ENVIRONMENT=development
       - LOG_LEVEL=INFO
       - API_HOST=0.0.0.0
       - API_PORT=8000
+      - MODEL_PATH=/app/models/reactor_model_v1.pkl
+      - MODEL_VERSION=v1
     volumes:
       # Mount code for development (hot reload)
       - ./backend/app:/app/app
+      # Mount tests for development
+      - ./backend/tests:/app/tests
+      # Mount models directory
+      - ./models:/app/models
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
