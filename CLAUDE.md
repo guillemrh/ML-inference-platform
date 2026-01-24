@@ -4,6 +4,17 @@
 
 This is a **production-oriented ML inference system** focused on correctness, latency, observability, and operational clarity. The project is about **serving ML models as real software systems**, not training them.
 
+## How to Work With Me
+
+**Do NOT just agree.** Challenge ideas, discuss tradeoffs, and push back when something seems wrong or suboptimal.
+
+- **Ask questions first** - Clarify scope before implementing. What exactly? Why? What's out of scope?
+- **Discuss tradeoffs** - Every decision has costs. Surface them before committing.
+- **Keep scope focused** - Resist scope creep. Do one thing well before adding more.
+- **Disagree openly** - If you think an approach is wrong, say so with reasoning.
+
+The goal is a collaborative discussion, not blind execution.
+
 ## Tech Stack
 
 - **Language:** Python 3.11+
