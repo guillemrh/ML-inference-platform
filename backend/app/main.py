@@ -22,7 +22,7 @@ logger = get_logger(__name__)
 async def lifespan(app: FastAPI):
     """
     Application lifecycle manager.
-    
+
     Handles startup and shutdown logic.
     """
     # Startup
@@ -33,11 +33,11 @@ async def lifespan(app: FastAPI):
                 "app_name": settings.app_name,
                 "environment": settings.environment,
             }
-        }
+        },
     )
-    
+
     yield
-    
+
     # Shutdown
     logger.info("Application shutting down")
 
@@ -45,25 +45,25 @@ async def lifespan(app: FastAPI):
 def create_app() -> FastAPI:
     """
     Application factory.
-    
+
     Creates and configures the FastAPI application instance.
-    
+
     Returns:
         Configured FastAPI application
     """
     # Setup logging first
     setup_logging()
-    
+
     # Create app
     app = FastAPI(
         title=settings.app_name,
         version="0.1.0",
         lifespan=lifespan,
     )
-    
+
     # Register routes
     app.include_router(health.router, tags=["health"])
-    
+
     return app
 
 
