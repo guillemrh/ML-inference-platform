@@ -4,9 +4,9 @@ FROM python:3.11-slim as base
 # Set working directory
 WORKDIR /app
 
-# Install system dependencies (if needed in future)
+# Install system dependencies
 RUN apt-get update && \
-    apt-get install -y --no-install-recommends \
+    apt-get install -y --no-install-recommends curl \
     && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements first (better layer caching)
