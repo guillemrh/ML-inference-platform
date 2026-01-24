@@ -76,23 +76,10 @@ backend/
 
 ## Code Standards
 
-### Python
-- Use type hints everywhere
-- Pydantic for all data validation
-- Structured logging (JSON in production)
-- No bare `except:` clauses
-
-### API Design
-- Explicit request/response schemas
-- Include metadata in responses (model version, latency)
-- Health checks must be fast and dependency-free
-- Proper HTTP status codes
-
-### Testing
-- Unit tests for all business logic
-- Integration tests for API endpoints
-- Tests must be fast and deterministic
-- Mock external dependencies
+See [.agents/skills/](.agents/skills/) for detailed standards:
+- [coding/python.md](.agents/skills/coding/python.md) - Python standards, type hints, Pydantic
+- [coding/testing.md](.agents/skills/coding/testing.md) - Testing patterns and requirements
+- [inference/schemas.md](.agents/skills/inference/schemas.md) - API request/response design
 
 ## Non-Goals
 

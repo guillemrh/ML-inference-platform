@@ -1,6 +1,6 @@
 # /lint
 
-Run linting and formatting checks using ruff inside Docker.
+Run linting and formatting checks inside Docker.
 
 ## Usage
 
@@ -21,25 +21,32 @@ Run linting and formatting checks using ruff inside Docker.
    docker-compose exec backend ruff check app/ tests/
    ```
 
-3. Run ruff formatter (check mode):
+3. Run black formatter (check mode):
    ```bash
-   docker-compose exec backend ruff format --check app/ tests/
+   docker-compose exec backend black --check app/ tests/
    ```
 
 4. To auto-fix issues:
    ```bash
    docker-compose exec backend ruff check --fix app/ tests/
-   docker-compose exec backend ruff format app/ tests/
+   docker-compose exec backend black app/ tests/
    ```
 
-## Linting Rules
+## Tools
 
-This project uses ruff with the following focus:
+### Ruff (Linting)
+Fast Python linter with these rule sets:
 - **E**: pycodestyle errors
 - **F**: Pyflakes
 - **I**: isort (import sorting)
 - **UP**: pyupgrade (modern Python syntax)
 - **B**: flake8-bugbear (common bugs)
+
+### Black (Formatting)
+Opinionated code formatter:
+- Consistent code style
+- Line length: 88 characters (default)
+- No configuration needed
 
 ## Expected Output
 
@@ -49,6 +56,6 @@ This project uses ruff with the following focus:
 
 ## Notes
 
-- Linting should pass before creating PRs
+- Linting and formatting should pass before creating PRs
 - Format code before committing
-- If ruff is not installed in container, add it to requirements.txt first
+- Required in `requirements.txt`: `ruff`, `black`

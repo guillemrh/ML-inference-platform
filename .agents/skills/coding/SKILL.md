@@ -22,8 +22,9 @@ This skill covers Python coding standards and patterns used in the ML Inference 
 - Pydantic for data validation
 - Structured logging (JSON in production)
 
-### Linting
-- Use `ruff` for linting and formatting
+### Linting & Formatting
+- **ruff** for linting (fast, comprehensive)
+- **black** for code formatting (consistent style)
 - Run `/lint` before committing
 
 ### Testing
