@@ -7,7 +7,8 @@ import time
 from fastapi import APIRouter, HTTPException
 
 from app.core.logging import get_logger
-from app.models import get_model, ModelNotLoadedError
+from app.models import ModelNotLoadedError, get_model
+from app.observability import record_prediction
 from app.schemas import PredictRequest, PredictResponse
 
 router = APIRouter()
@@ -57,7 +58,11 @@ async def predict(request: PredictRequest) -> PredictResponse:
         )
         raise HTTPException(status_code=500, detail="Inference failed")
 
-    latency_ms = (time.perf_counter() - start_time) * 1000
+    latency_seconds = time.perf_counter() - start_time
+    latency_ms = latency_seconds * 1000
+
+    # Record metrics
+    record_prediction(label=result["label"], duration_seconds=latency_seconds)
 
     logger.info(
         "Prediction completed",
