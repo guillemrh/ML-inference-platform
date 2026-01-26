@@ -255,14 +255,213 @@ See [CLAUDE.md](CLAUDE.md) for full project context and [.agents/](.agents/) for
 
 ## Project Status
 
-- [ ] Architecture defined
-- [ ] Project structure finalized
-- [ ] Inference API implemented
-- [ ] Model versioning implemented
-- [ ] Observability added
-- [ ] CI pipeline added
+### Completed
+- [x] Architecture defined
+- [x] Project structure finalized
+- [x] Inference API implemented (`POST /predict`, `GET /health`)
+- [x] Basic observability (Prometheus metrics, Grafana dashboards)
+- [x] CI pipeline (GitHub Actions)
+- [x] Docker-first development workflow
 
-This checklist is intentionally incremental.
+### In Progress
+- [ ] Model versioning (explicit version tracking in responses)
+
+### Planned
+- [ ] Shadow mode (challenger model pattern)
+- [ ] Canary deployments (gradual traffic shifting)
+- [ ] Distributed tracing (OpenTelemetry + Jaeger)
+- [ ] Model registry service
+
+---
+
+## Development Roadmap
+
+This roadmap is designed to progressively answer the hard questions from "Why This Project Exists" while building production-grade ML infrastructure skills.
+
+---
+
+### Stage 1: Shadow Mode (Challenger Pattern)
+
+**Status:** Next up
+
+**What it is:**
+Run a "shadow" model alongside the primary model. Both receive the same input, but only the primary model's prediction is returned to the user. The shadow model's prediction is logged for comparison.
+
+```
+Request → API → ┬→ Primary Model (v1) → Response to user
+                └→ Shadow Model (v2) → Log only (no user impact)
+                         ↓
+                  Compare: latency, predictions, errors
+```
+
+**Why it matters:**
+- Test new models in production with **zero risk** to users
+- Compare model behavior on **real traffic**, not just test data
+- Catch regressions before they affect users
+- Build confidence before promoting a new model
+
+**What you'll learn:**
+- Parallel execution patterns in async Python
+- Comparing model outputs systematically
+- Observability for model comparison (metrics, logs)
+- Decision criteria for model promotion
+
+**Key components to build:**
+| Component | Purpose |
+|-----------|---------|
+| `ShadowRunner` | Executes shadow model in parallel, handles timeouts |
+| `ComparisonLogger` | Logs primary vs shadow predictions for analysis |
+| Shadow metrics | `shadow_model_latency`, `prediction_agreement_rate` |
+| Configuration | Enable/disable shadow mode, select shadow model version |
+
+**Success criteria:**
+- Shadow model runs on every request without affecting response latency significantly (<10% overhead)
+- Can compare predictions between primary and shadow in Grafana
+- Shadow failures don't break primary responses
+
+---
+
+### Stage 2: Canary Deployments
+
+**Status:** After shadow mode
+
+**What it is:**
+Gradually shift traffic from the old model to the new model. Start with 1%, monitor, increase to 10%, monitor, then 100%.
+
+```
+Request → Traffic Router → ┬→ 90% → Model v1 (stable)
+                           └→ 10% → Model v2 (canary)
+```
+
+**Why it matters:**
+- Shadow mode proves the model *can* work; canary proves it *does* work for real users
+- Limit blast radius: if v2 is broken, only 10% of users are affected
+- Gradual rollout with rollback capability
+- This is how Netflix, Google, Uber deploy ML models
+
+**What you'll learn:**
+- Traffic splitting strategies (random, user-based, feature-based)
+- Rollback mechanisms and triggers
+- Deployment automation patterns
+- Statistical significance in A/B comparisons
+
+**Key components to build:**
+| Component | Purpose |
+|-----------|---------|
+| `TrafficRouter` | Routes requests based on configured weights |
+| Rollout configuration | Define traffic split percentages |
+| Rollback triggers | Auto-rollback on error rate spike |
+| Canary metrics | Per-version latency, error rate, prediction distribution |
+
+**Progression:**
+1. Manual traffic splitting (config change)
+2. API-driven traffic control (`POST /admin/traffic-split`)
+3. Automated rollback on anomaly detection (stretch goal)
+
+**Success criteria:**
+- Can route X% of traffic to canary model via configuration
+- Grafana shows per-model-version metrics side by side
+- Can rollback to 0% canary traffic quickly
+
+---
+
+### Stage 3: Distributed Tracing (OpenTelemetry + Jaeger)
+
+**Status:** After canary deployments
+
+**What it is:**
+Instrument the system to trace individual requests across all components. Each request gets a trace ID that follows it through the entire flow.
+
+```
+Trace: abc-123
+├─ API Gateway (5ms)
+├─ Traffic Router (1ms)
+├─ Model v2 - Canary (150ms)
+│   ├─ Input validation (2ms)
+│   ├─ Feature preparation (8ms)
+│   └─ Inference (140ms)
+└─ Response formatting (2ms)
+```
+
+**Why it matters:**
+- With shadow mode and canary, you now have **multiple paths** through the system
+- "Why was this specific request slow?" requires tracing, not just metrics
+- Debug production issues without guessing
+- Understand where latency actually comes from
+
+**What you'll learn:**
+- OpenTelemetry instrumentation (spans, context propagation)
+- Trace collection and visualization (Jaeger)
+- Correlation between traces, metrics, and logs
+- Performance profiling in production
+
+**Key components to build:**
+| Component | Purpose |
+|-----------|---------|
+| OpenTelemetry SDK | Instrument FastAPI, model inference |
+| Jaeger | Collect and visualize traces |
+| Custom spans | Model loading, inference, shadow execution |
+| Trace-metric correlation | Link trace IDs to Prometheus metrics |
+
+**Success criteria:**
+- Every request has a trace visible in Jaeger
+- Can see shadow model execution as a parallel span
+- Can filter traces by model version, latency, error status
+
+---
+
+### Stage 4: Model Registry Service (Future)
+
+**Status:** Future consideration
+
+**What it is:**
+A separate service that manages model artifacts, versions, and metadata. The inference service queries the registry to know which models to load.
+
+```
+Inference Service → Model Registry → "What's the current primary model?"
+                          ↓
+                  Returns: model_path, version, config
+                          ↓
+                  Inference Service loads and caches model
+```
+
+**Why it matters:**
+- Decouples model management from inference
+- Enables dynamic model loading without redeployment
+- Central source of truth for model versions
+- Foundation for more advanced patterns (A/B tests, multi-armed bandits)
+
+**What you'll learn:**
+- Service-to-service communication patterns
+- Model artifact storage and retrieval
+- Cache invalidation strategies
+- API design for internal services
+
+**Key components to build:**
+| Component | Purpose |
+|-----------|---------|
+| Registry API | `GET /models/{name}/active`, `POST /models/{name}/promote` |
+| Model storage | Store model artifacts (local filesystem → S3 later) |
+| Metadata DB | Track versions, promotion history, rollback points |
+| Cache layer | Inference service caches loaded models |
+
+**Success criteria:**
+- Can promote a new model version via API without redeploying inference service
+- Inference service automatically picks up new model versions
+- Full audit trail of model promotions
+
+---
+
+### Roadmap Summary
+
+| Stage | Focus | Key Question Answered |
+|-------|-------|----------------------|
+| 1. Shadow Mode | Safe comparison | "Is the new model behaving correctly?" |
+| 2. Canary | Safe rollout | "Does the new model work for real users?" |
+| 3. Tracing | Debuggability | "Why was this specific request slow/broken?" |
+| 4. Registry | Dynamic management | "How do we manage models without redeploying?" |
+
+Each stage builds on the previous. Shadow mode is prerequisite for canary (you should shadow first). Tracing becomes valuable once you have multiple code paths (shadow + canary). Registry is optional but enables more sophisticated patterns.
 
 ---
 
