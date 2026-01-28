@@ -18,8 +18,9 @@ from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 from app.api.routes import health, inference
 from app.core.config import settings
 from app.core.logging import get_logger, setup_logging
-from app.models import ModelLoadError, get_model
+from app.models import ModelLoadError
 from app.observability import PrometheusMiddleware, set_model_info
+from app.services import get_model_manager
 
 logger = get_logger(__name__)
 
@@ -42,15 +43,25 @@ async def lifespan(app: FastAPI):
         },
     )
 
-    # Load model
+    # Load models
     try:
-        model = get_model()
-        model.load()
-        logger.info(
-            "Model loaded at startup",
-            extra={"extra_fields": {"model_version": model.version}},
-        )
-        set_model_info(version=model.version, is_loaded=True)
+        model_manager = get_model_manager()
+        model_manager.load_all()
+
+        primary = model_manager.primary
+        if primary:
+            logger.info(
+                "Primary model loaded at startup",
+                extra={"extra_fields": {"model_version": primary.version}},
+            )
+            set_model_info(version=primary.version, is_loaded=True)
+
+        if model_manager.shadow_enabled:
+            shadow = model_manager.shadow
+            logger.info(
+                "Shadow mode enabled",
+                extra={"extra_fields": {"shadow_version": shadow.version if shadow else None}},
+            )
     except ModelLoadError as e:
         logger.error(
             "Failed to load model at startup",

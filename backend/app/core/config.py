@@ -30,9 +30,15 @@ class Settings(BaseSettings):
     # Logging
     log_level: Literal["DEBUG", "INFO", "WARNING", "ERROR"] = "INFO"
 
-    # Model
+    # Primary Model
     model_path: Path = Path("/app/models/reactor_model_v1.pkl")
     model_version: str = "v1"
+
+    # Shadow Mode
+    shadow_enabled: bool = False
+    shadow_model_path: Path = Path("/app/models/reactor_model_v2.pkl")
+    shadow_model_version: str = "v2"
+    shadow_timeout_ms: int = 500  # Max time to wait for shadow model
 
     model_config = {
         "env_file": ".env",

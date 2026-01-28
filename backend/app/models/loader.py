@@ -1,7 +1,7 @@
 """
 Model loader for Chemical Reactor Anomaly Detection.
 
-Implements singleton pattern to ensure model is loaded once at startup.
+Supports loading multiple model instances for shadow mode and canary deployments.
 """
 
 from pathlib import Path
@@ -10,7 +10,6 @@ from typing import Any
 import joblib
 import numpy as np
 
-from app.core.config import settings
 from app.core.logging import get_logger
 
 logger = get_logger(__name__)
@@ -30,58 +29,66 @@ class ModelNotLoadedError(Exception):
 
 class ReactorModel:
     """
-    Singleton wrapper for the reactor anomaly detection model.
+    Wrapper for the reactor anomaly detection model.
 
     Loads model and scaler from disk, provides inference method.
+    Each instance can hold a different model version.
     """
 
-    _instance: "ReactorModel | None" = None
-    _model: Any = None
-    _scaler: Any = None
-    _feature_names: list[str] = []
-    _version: str = ""
-    _loaded: bool = False
+    def __init__(self, name: str = "primary") -> None:
+        """
+        Initialize model wrapper.
 
-    def __new__(cls) -> "ReactorModel":
-        if cls._instance is None:
-            cls._instance = super().__new__(cls)
-        return cls._instance
+        Args:
+            name: Identifier for this model instance (e.g., "primary", "shadow")
+        """
+        self._name = name
+        self._model: Any = None
+        self._scaler: Any = None
+        self._feature_names: list[str] = []
+        self._version: str = ""
+        self._loaded: bool = False
 
-    def load(self, model_path: Path | None = None) -> None:
+    @property
+    def name(self) -> str:
+        """Get model instance name."""
+        return self._name
+
+    def load(self, model_path: Path, version: str | None = None) -> None:
         """
         Load model from disk.
 
         Args:
-            model_path: Path to model file. Uses settings if not provided.
+            model_path: Path to model file.
+            version: Optional version override. If not provided, uses version from model file.
 
         Raises:
             ModelLoadError: If model file doesn't exist or fails to load.
         """
-        path = model_path or settings.model_path
-
-        if not path.exists():
-            raise ModelLoadError(f"Model file not found: {path}")
+        if not model_path.exists():
+            raise ModelLoadError(f"Model file not found: {model_path}")
 
         try:
-            model_data = joblib.load(path)
+            model_data = joblib.load(model_path)
             self._model = model_data["model"]
             self._scaler = model_data["scaler"]
             self._feature_names = model_data["feature_names"]
-            self._version = model_data.get("version", settings.model_version)
+            self._version = version or model_data.get("version", "unknown")
             self._loaded = True
 
             logger.info(
                 "Model loaded successfully",
                 extra={
                     "extra_fields": {
-                        "model_path": str(path),
+                        "model_name": self._name,
+                        "model_path": str(model_path),
                         "model_version": self._version,
                         "feature_names": self._feature_names,
                     }
                 },
             )
         except Exception as e:
-            raise ModelLoadError(f"Failed to load model: {e}") from e
+            raise ModelLoadError(f"Failed to load model '{self._name}': {e}") from e
 
     @property
     def is_loaded(self) -> bool:
@@ -139,10 +146,3 @@ class ReactorModel:
         }
 
 
-# Global model instance
-reactor_model = ReactorModel()
-
-
-def get_model() -> ReactorModel:
-    """Get the global model instance."""
-    return reactor_model
