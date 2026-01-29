@@ -10,6 +10,10 @@ from app.services.shadow_runner import (
     ShadowComparison,
     ShadowRunner,
 )
+from app.services.traffic_router import (
+    TrafficRouter,
+    TrafficSplit,
+)
 
 __all__ = [
     "ModelManager",
@@ -18,4 +22,6 @@ __all__ = [
     "ModelResult",
     "ShadowComparison",
     "ShadowRunner",
+    "TrafficRouter",
+    "TrafficSplit",
 ]

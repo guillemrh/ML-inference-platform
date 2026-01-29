@@ -8,7 +8,11 @@ from fastapi import APIRouter, HTTPException
 
 from app.core.logging import get_logger
 from app.models import ModelNotLoadedError
-from app.observability import record_prediction, record_shadow_result
+from app.observability import (
+    record_canary_routing,
+    record_prediction,
+    record_shadow_result,
+)
 from app.schemas import PredictRequest, PredictResponse
 from app.services import ShadowRunner, get_model_manager
 
@@ -52,11 +56,24 @@ async def predict(request: PredictRequest) -> PredictResponse:
     ]
 
     try:
-        if model_manager.shadow_enabled:
-            # Run with shadow mode
+        if model_manager.canary_enabled:
+            # Canary mode: route to one model based on traffic weight
+            router = model_manager.traffic_router
+            use_canary = router.should_route_to_canary()
+            chosen_model = model_manager.secondary if use_canary else primary
+            routed_to = "canary" if use_canary else "primary"
+
+            prediction_result = chosen_model.predict(features)
+            latency_ms = (time.perf_counter() - start_time) * 1000
+            model_version = chosen_model.version
+
+            record_canary_routing(routed_to)
+
+        elif model_manager.shadow_enabled:
+            # Shadow mode: run both, return primary
             shadow_runner = ShadowRunner(
                 primary_model=primary,
-                shadow_model=model_manager.shadow,
+                shadow_model=model_manager.secondary,
             )
             comparison = await shadow_runner.run(features)
             result = comparison.primary
@@ -90,7 +107,7 @@ async def predict(request: PredictRequest) -> PredictResponse:
                 "label": result.label,
             }
         else:
-            # Run without shadow mode (direct model call)
+            # Direct mode
             prediction_result = primary.predict(features)
             latency_ms = (time.perf_counter() - start_time) * 1000
             model_version = primary.version
@@ -106,10 +123,12 @@ async def predict(request: PredictRequest) -> PredictResponse:
         )
         raise HTTPException(status_code=500, detail="Inference failed")
 
-    # Record primary model metrics
+    # Record model metrics
     latency_seconds = latency_ms / 1000
     record_prediction(
-        label=prediction_result["label"], duration_seconds=latency_seconds
+        label=prediction_result["label"],
+        duration_seconds=latency_seconds,
+        model_version=model_version,
     )
 
     logger.info(
@@ -120,7 +139,7 @@ async def predict(request: PredictRequest) -> PredictResponse:
                 "probability": prediction_result["probability"],
                 "model_version": model_version,
                 "latency_ms": round(latency_ms, 2),
-                "shadow_enabled": model_manager.shadow_enabled,
+                "deployment_mode": model_manager.deployment_mode,
             }
         },
     )

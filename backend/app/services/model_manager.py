@@ -1,26 +1,28 @@
 """
-Model manager for handling primary and shadow models.
+Model manager for handling primary and secondary models.
 
-Provides a central access point for all loaded models.
+Provides a central access point for all loaded models and traffic routing.
 """
 
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.loader import ModelLoadError, ReactorModel
+from app.services.traffic_router import TrafficRouter
 
 logger = get_logger(__name__)
 
 
 class ModelManager:
     """
-    Manages primary and shadow model instances.
+    Manages primary and secondary model instances.
 
-    Handles loading and provides access to models for inference.
+    The secondary model is used as shadow or canary depending on deployment_mode.
     """
 
     def __init__(self) -> None:
         self._primary: ReactorModel | None = None
-        self._shadow: ReactorModel | None = None
+        self._secondary: ReactorModel | None = None
+        self._traffic_router = TrafficRouter(canary_weight=settings.canary_weight)
 
     @property
     def primary(self) -> ReactorModel | None:
@@ -28,18 +30,37 @@ class ModelManager:
         return self._primary
 
     @property
-    def shadow(self) -> ReactorModel | None:
-        """Get the shadow model (may be None if shadow mode disabled)."""
-        return self._shadow
+    def secondary(self) -> ReactorModel | None:
+        """Get the secondary model (may be None if not loaded)."""
+        return self._secondary
+
+    @property
+    def deployment_mode(self) -> str:
+        """Get the current deployment mode."""
+        return settings.deployment_mode
 
     @property
     def shadow_enabled(self) -> bool:
-        """Check if shadow mode is enabled and shadow model is loaded."""
+        """Check if shadow mode is active."""
         return (
-            settings.shadow_enabled
-            and self._shadow is not None
-            and self._shadow.is_loaded
+            settings.deployment_mode == "shadow"
+            and self._secondary is not None
+            and self._secondary.is_loaded
         )
+
+    @property
+    def canary_enabled(self) -> bool:
+        """Check if canary mode is active."""
+        return (
+            settings.deployment_mode == "canary"
+            and self._secondary is not None
+            and self._secondary.is_loaded
+        )
+
+    @property
+    def traffic_router(self) -> TrafficRouter:
+        """Get the traffic router for canary deployments."""
+        return self._traffic_router
 
     def load_primary(self) -> None:
         """
@@ -55,35 +76,42 @@ class ModelManager:
             extra={"extra_fields": {"version": self._primary.version}},
         )
 
-    def load_shadow(self) -> None:
+    def load_secondary(self) -> None:
         """
-        Load the shadow model if shadow mode is enabled.
+        Load the secondary model if deployment mode requires it.
 
-        Does nothing if shadow mode is disabled.
-        Logs warning but doesn't fail if shadow model can't be loaded.
+        Does nothing in direct mode.
+        Logs warning but doesn't fail if secondary model can't be loaded.
         """
-        if not settings.shadow_enabled:
-            logger.info("Shadow mode disabled, skipping shadow model load")
+        if settings.deployment_mode == "direct":
+            logger.info("Direct mode, skipping secondary model load")
             return
 
         try:
-            self._shadow = ReactorModel(name="shadow")
-            self._shadow.load(settings.shadow_model_path, settings.shadow_model_version)
+            self._secondary = ReactorModel(name="secondary")
+            self._secondary.load(
+                settings.secondary_model_path, settings.secondary_model_version
+            )
             logger.info(
-                "Shadow model loaded",
-                extra={"extra_fields": {"version": self._shadow.version}},
+                "Secondary model loaded",
+                extra={
+                    "extra_fields": {
+                        "version": self._secondary.version,
+                        "deployment_mode": settings.deployment_mode,
+                    }
+                },
             )
         except ModelLoadError as e:
             logger.warning(
-                "Failed to load shadow model, continuing without shadow mode",
+                "Failed to load secondary model, falling back to direct mode",
                 extra={"extra_fields": {"error": str(e)}},
             )
-            self._shadow = None
+            self._secondary = None
 
     def load_all(self) -> None:
-        """Load primary model and shadow model (if enabled)."""
+        """Load primary model and secondary model (if needed)."""
         self.load_primary()
-        self.load_shadow()
+        self.load_secondary()
 
 
 # Global model manager instance
@@ -99,11 +127,7 @@ def get_model_manager() -> ModelManager:
 
 
 def get_model() -> ReactorModel:
-    """
-    Get the primary model.
-
-    Convenience function for backwards compatibility.
-    """
+    """Get the primary model."""
     manager = get_model_manager()
     if manager.primary is None:
         raise ModelLoadError("Primary model not loaded")

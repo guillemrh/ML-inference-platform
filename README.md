@@ -276,11 +276,16 @@ See [CLAUDE.md](CLAUDE.md) for full project context and [.agents/](.agents/) for
        Shadow mode correctly surfaced the latency regression before any user impact. -->
 
 ### Stage 2: Canary Deployments
-- [ ] TrafficRouter (weight-based request routing)
-- [ ] Rollout configuration (traffic split percentages)
-- [ ] Per-version metrics (latency, error rate, prediction distribution)
-- [ ] Rollback triggers (auto-rollback on error spike)
-- [ ] API-driven traffic control (`POST /admin/traffic-split`)
+- [x] TrafficRouter (weight-based request routing)
+- [x] Rollout configuration (traffic split percentages)
+- [x] Per-version metrics (latency, error rate, prediction distribution)
+- [ ] Rollback triggers (auto-rollback on error spike) — stretch goal
+- [x] API-driven traffic control (`POST /admin/traffic-split`)
+- [x] E2E validation: 10% → 50% → 0% rollback, all routing correct
+  <!-- 1200 requests total. At 10%: 453 primary / 47 canary (9.4%).
+       Runtime change to 50%: split matched immediately. Rollback to 0%:
+       zero canary traffic instantly. v2 avg latency 2.98ms vs v1 0.15ms (20x slower).
+       Promotion decision: NO — latency regression confirmed. -->
 
 ### Stage 3: Distributed Tracing (OpenTelemetry + Jaeger)
 - [ ] OpenTelemetry SDK instrumentation (FastAPI, model inference)
@@ -293,6 +298,14 @@ See [CLAUDE.md](CLAUDE.md) for full project context and [.agents/](.agents/) for
 - [ ] Model artifact storage
 - [ ] Metadata DB (versions, promotion history, rollback points)
 - [ ] Cache layer (inference service caches loaded models)
+
+---
+
+## Stage Results
+
+**Stage 1 — Shadow Mode:** Ran 500 requests with RandomForest v2 shadowing LogisticRegression v1. 99.6% prediction agreement (2 edge-case divergences), but v2 was 85x slower (25.5ms vs 0.3ms) — shadow mode correctly surfaced the latency regression before any user impact. Promotion decision: **no**.
+
+**Stage 2 — Canary Deployments:** Ran 1200 requests across three phases (10% → 50% → 0% rollback). Traffic routing matched configured weights at every step, and runtime weight changes via `POST /admin/traffic-split` took effect instantly without restart. v2 confirmed 20x slower (2.98ms vs 0.15ms). Promotion decision: **no** — same latency regression, now validated with real user-facing traffic.
 
 ---
 
@@ -345,7 +358,7 @@ Request → API → ┬→ Primary Model (v1) → Response to user
 
 ### Stage 2: Canary Deployments
 
-**Status:** After shadow mode
+**Status:** Complete
 
 **What it is:**
 Gradually shift traffic from the old model to the new model. Start with 1%, monitor, increase to 10%, monitor, then 100%.

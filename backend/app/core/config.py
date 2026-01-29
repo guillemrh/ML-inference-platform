@@ -34,11 +34,16 @@ class Settings(BaseSettings):
     model_path: Path = Path("/app/models/reactor_model_v1.pkl")
     model_version: str = "v1"
 
-    # Shadow Mode
-    shadow_enabled: bool = False
-    shadow_model_path: Path = Path("/app/models/reactor_model_v2.pkl")
-    shadow_model_version: str = "v2"
+    # Deployment Mode
+    deployment_mode: Literal["direct", "shadow", "canary"] = "direct"
+
+    # Secondary Model (used as shadow or canary depending on deployment_mode)
+    secondary_model_path: Path = Path("/app/models/reactor_model_v2.pkl")
+    secondary_model_version: str = "v2"
     shadow_timeout_ms: int = 500  # Max time to wait for shadow model
+
+    # Canary
+    canary_weight: int = 0  # Percentage of traffic routed to canary (0-100)
 
     model_config = {
         "env_file": ".env",

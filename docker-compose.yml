@@ -17,11 +17,14 @@ services:
       # Primary model
       - MODEL_PATH=/app/models/reactor_model_v1.pkl
       - MODEL_VERSION=v1
-      # Shadow mode (set SHADOW_ENABLED=true to enable)
-      - SHADOW_ENABLED=true
-      - SHADOW_MODEL_PATH=/app/models/reactor_model_v2.pkl
-      - SHADOW_MODEL_VERSION=v2
+      # Deployment mode: "direct", "shadow", or "canary"
+      - DEPLOYMENT_MODE=canary
+      # Secondary model (used as shadow or canary)
+      - SECONDARY_MODEL_PATH=/app/models/reactor_model_v2.pkl
+      - SECONDARY_MODEL_VERSION=v2
       - SHADOW_TIMEOUT_MS=500
+      # Canary settings
+      - CANARY_WEIGHT=10
     volumes:
       # Mount code for development (hot reload)
       - ./backend/app:/app/app
