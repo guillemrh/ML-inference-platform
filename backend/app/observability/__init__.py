@@ -19,6 +19,7 @@ from app.observability.metrics import (
     set_model_info,
 )
 from app.observability.middleware import PrometheusMiddleware
+from app.observability.tracing import get_tracer, setup_tracing, shutdown_tracing
 
 __all__ = [
     # Metrics
@@ -43,4 +44,8 @@ __all__ = [
     "record_canary_routing",
     # Middleware
     "PrometheusMiddleware",
+    # Tracing
+    "setup_tracing",
+    "shutdown_tracing",
+    "get_tracer",
 ]

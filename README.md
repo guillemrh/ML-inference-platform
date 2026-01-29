@@ -288,10 +288,12 @@ See [CLAUDE.md](CLAUDE.md) for full project context and [.agents/](.agents/) for
        Promotion decision: NO — latency regression confirmed. -->
 
 ### Stage 3: Distributed Tracing (OpenTelemetry + Jaeger)
-- [ ] OpenTelemetry SDK instrumentation (FastAPI, model inference)
-- [ ] Jaeger trace collection and visualization
-- [ ] Custom spans (model loading, inference, shadow execution)
-- [ ] Trace-metric correlation (link trace IDs to Prometheus)
+- [x] OpenTelemetry SDK instrumentation (FastAPI, model inference)
+- [x] Jaeger trace collection and visualization
+- [x] Custom spans (model loading, inference, shadow execution, canary routing)
+- [x] Trace-log correlation (trace_id/span_id injected into structured JSON logs)
+- [x] Configurable sampling rate (`TRACE_SAMPLE_RATE` env var)
+- [x] Tests (64 passing)
 
 ### Stage 4: Model Registry Service
 - [ ] Registry API (`GET /models/{name}/active`, `POST /models/{name}/promote`)
@@ -306,6 +308,8 @@ See [CLAUDE.md](CLAUDE.md) for full project context and [.agents/](.agents/) for
 **Stage 1 — Shadow Mode:** Ran 500 requests with RandomForest v2 shadowing LogisticRegression v1. 99.6% prediction agreement (2 edge-case divergences), but v2 was 85x slower (25.5ms vs 0.3ms) — shadow mode correctly surfaced the latency regression before any user impact. Promotion decision: **no**.
 
 **Stage 2 — Canary Deployments:** Ran 1200 requests across three phases (10% → 50% → 0% rollback). Traffic routing matched configured weights at every step, and runtime weight changes via `POST /admin/traffic-split` took effect instantly without restart. v2 confirmed 20x slower (2.98ms vs 0.15ms). Promotion decision: **no** — same latency regression, now validated with real user-facing traffic.
+
+**Stage 3 — Distributed Tracing:** Added OpenTelemetry instrumentation with Jaeger. Every request now produces a full trace with spans for feature extraction, routing decisions, and model inference — trace IDs are injected into structured logs for correlation. Jaeger UI at `localhost:16687` shows the complete span hierarchy per request.
 
 ---
 
@@ -402,7 +406,7 @@ Request → Traffic Router → ┬→ 90% → Model v1 (stable)
 
 ### Stage 3: Distributed Tracing (OpenTelemetry + Jaeger)
 
-**Status:** After canary deployments
+**Status:** Complete
 
 **What it is:**
 Instrument the system to trace individual requests across all components. Each request gets a trace ID that follows it through the entire flow.

@@ -11,8 +11,10 @@ import joblib
 import numpy as np
 
 from app.core.logging import get_logger
+from app.observability.tracing import get_tracer
 
 logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 
 
 class ModelLoadError(Exception):
@@ -68,27 +70,38 @@ class ReactorModel:
         if not model_path.exists():
             raise ModelLoadError(f"Model file not found: {model_path}")
 
-        try:
-            model_data = joblib.load(model_path)
-            self._model = model_data["model"]
-            self._scaler = model_data["scaler"]
-            self._feature_names = model_data["feature_names"]
-            self._version = version or model_data.get("version", "unknown")
-            self._loaded = True
+        with tracer.start_as_current_span("model.load") as span:
+            span.set_attribute("model_name", self._name)
+            span.set_attribute("model_path", str(model_path))
+            if version:
+                span.set_attribute("model_version", version)
 
-            logger.info(
-                "Model loaded successfully",
-                extra={
-                    "extra_fields": {
-                        "model_name": self._name,
-                        "model_path": str(model_path),
-                        "model_version": self._version,
-                        "feature_names": self._feature_names,
-                    }
-                },
-            )
-        except Exception as e:
-            raise ModelLoadError(f"Failed to load model '{self._name}': {e}") from e
+            try:
+                model_data = joblib.load(model_path)
+                self._model = model_data["model"]
+                self._scaler = model_data["scaler"]
+                self._feature_names = model_data["feature_names"]
+                self._version = version or model_data.get("version", "unknown")
+                self._loaded = True
+
+                span.set_attribute("success", True)
+                span.set_attribute("model_version", self._version)
+
+                logger.info(
+                    "Model loaded successfully",
+                    extra={
+                        "extra_fields": {
+                            "model_name": self._name,
+                            "model_path": str(model_path),
+                            "model_version": self._version,
+                            "feature_names": self._feature_names,
+                        }
+                    },
+                )
+            except Exception as e:
+                span.set_attribute("success", False)
+                span.record_exception(e)
+                raise ModelLoadError(f"Failed to load model '{self._name}': {e}") from e
 
     @property
     def is_loaded(self) -> bool:

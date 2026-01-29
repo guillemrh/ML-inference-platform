@@ -13,8 +13,10 @@ from typing import Any
 from app.core.config import settings
 from app.core.logging import get_logger
 from app.models.loader import ReactorModel
+from app.observability.tracing import get_tracer
 
 logger = get_logger(__name__)
+tracer = get_tracer(__name__)
 
 
 @dataclass
@@ -76,14 +78,29 @@ def _run_model_sync(model: ReactorModel, features: list[float]) -> ModelResult:
         )
 
 
-async def _run_model_async(model: ReactorModel, features: list[float]) -> ModelResult:
+async def _run_model_async(
+    model: ReactorModel, features: list[float], model_name: str = "primary"
+) -> ModelResult:
     """
-    Execute model prediction asynchronously.
+    Execute model prediction asynchronously with tracing.
 
     Wraps synchronous model execution in asyncio executor.
     """
-    loop = asyncio.get_event_loop()
-    return await loop.run_in_executor(None, _run_model_sync, model, features)
+    with tracer.start_as_current_span("model.predict") as span:
+        span.set_attribute("model_name", model_name)
+        span.set_attribute("model_version", model.version)
+
+        loop = asyncio.get_event_loop()
+        result = await loop.run_in_executor(None, _run_model_sync, model, features)
+
+        span.set_attribute("success", result.success)
+        span.set_attribute("latency_ms", result.latency_ms)
+        if result.success:
+            span.set_attribute("prediction", result.prediction)
+        elif result.error:
+            span.set_attribute("error", result.error)
+
+        return result
 
 
 class ShadowRunner:
@@ -127,12 +144,16 @@ class ShadowRunner:
             ShadowComparison with both results.
         """
         # Always run primary
-        primary_task = asyncio.create_task(_run_model_async(self._primary, features))
+        primary_task = asyncio.create_task(
+            _run_model_async(self._primary, features, model_name="primary")
+        )
 
         # Run shadow if available
         shadow_result: ModelResult | None = None
         if self._shadow is not None:
-            shadow_task = asyncio.create_task(_run_model_async(self._shadow, features))
+            shadow_task = asyncio.create_task(
+                _run_model_async(self._shadow, features, model_name="shadow")
+            )
 
             # Wait for primary first (it determines response)
             primary_result = await primary_task
@@ -177,23 +198,37 @@ class ShadowRunner:
         self, primary: ModelResult, shadow: ModelResult | None
     ) -> ShadowComparison:
         """Compare primary and shadow results."""
-        if shadow is None or not shadow.success:
+        with tracer.start_as_current_span("shadow_comparison") as span:
+            if shadow is None or not shadow.success:
+                span.set_attribute("shadow_available", shadow is not None)
+                return ShadowComparison(
+                    primary=primary,
+                    shadow=shadow,
+                    predictions_agree=None,
+                    latency_diff_ms=None,
+                )
+
+            predictions_agree = primary.prediction == shadow.prediction
+            latency_diff_ms = shadow.latency_ms - primary.latency_ms
+
+            span.set_attribute("predictions_agree", predictions_agree)
+            span.set_attribute("latency_diff_ms", latency_diff_ms)
+
+            if not predictions_agree:
+                span.add_event(
+                    "prediction_mismatch",
+                    {
+                        "primary_prediction": primary.prediction,
+                        "shadow_prediction": shadow.prediction,
+                    },
+                )
+
             return ShadowComparison(
                 primary=primary,
                 shadow=shadow,
-                predictions_agree=None,
-                latency_diff_ms=None,
+                predictions_agree=predictions_agree,
+                latency_diff_ms=latency_diff_ms,
             )
-
-        predictions_agree = primary.prediction == shadow.prediction
-        latency_diff_ms = shadow.latency_ms - primary.latency_ms
-
-        return ShadowComparison(
-            primary=primary,
-            shadow=shadow,
-            predictions_agree=predictions_agree,
-            latency_diff_ms=latency_diff_ms,
-        )
 
     def _log_comparison(
         self, comparison: ShadowComparison, features: list[float]

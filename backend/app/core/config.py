@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     # Canary
     canary_weight: int = 0  # Percentage of traffic routed to canary (0-100)
 
+    # Tracing
+    tracing_enabled: bool = True
+    otlp_endpoint: str = "http://jaeger:4317"
+    trace_sample_rate: float = 1.0  # 0.0 to 1.0
+
     model_config = {
         "env_file": ".env",
         "case_sensitive": False,
