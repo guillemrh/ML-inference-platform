@@ -186,9 +186,7 @@ class TestShadowRunner:
         assert "Shadow crashed" in comparison.shadow.error
 
     @pytest.mark.asyncio
-    async def test_predictions_disagree(
-        self, mock_primary_model, sample_features
-    ):
+    async def test_predictions_disagree(self, mock_primary_model, sample_features):
         """Test detection of disagreement between models."""
         disagreeing_shadow = MagicMock()
         disagreeing_shadow.name = "shadow"
@@ -284,14 +282,12 @@ class TestShadowModeIntegration:
 
     def test_predict_with_shadow_mode_enabled(self, valid_input):
         """Test prediction with shadow mode enabled via environment."""
-        from fastapi.testclient import TestClient
-
         with patch.dict(
             "os.environ",
             {
-                "SHADOW_ENABLED": "true",
-                "SHADOW_MODEL_PATH": "/app/models/reactor_model_v2.pkl",
-                "SHADOW_MODEL_VERSION": "v2",
+                "DEPLOYMENT_MODE": "shadow",
+                "SECONDARY_MODEL_PATH": "/app/models/reactor_model_v2.pkl",
+                "SECONDARY_MODEL_VERSION": "v2",
             },
         ):
             # Need to reload config and app to pick up new env vars

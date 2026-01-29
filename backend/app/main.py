@@ -15,11 +15,11 @@ from fastapi import FastAPI
 from fastapi.responses import PlainTextResponse
 from prometheus_client import CONTENT_TYPE_LATEST, generate_latest
 
-from app.api.routes import health, inference
+from app.api.routes import admin, health, inference
 from app.core.config import settings
 from app.core.logging import get_logger, setup_logging
 from app.models import ModelLoadError
-from app.observability import PrometheusMiddleware, set_model_info
+from app.observability import CANARY_WEIGHT, PrometheusMiddleware, set_model_info
 from app.services import get_model_manager
 
 logger = get_logger(__name__)
@@ -56,13 +56,24 @@ async def lifespan(app: FastAPI):
             )
             set_model_info(version=primary.version, is_loaded=True)
 
+        secondary = model_manager.secondary
         if model_manager.shadow_enabled:
-            shadow = model_manager.shadow
             logger.info(
                 "Shadow mode enabled",
                 extra={
                     "extra_fields": {
-                        "shadow_version": shadow.version if shadow else None
+                        "secondary_version": secondary.version if secondary else None
+                    }
+                },
+            )
+        elif model_manager.canary_enabled:
+            CANARY_WEIGHT.set(model_manager.traffic_router.canary_weight)
+            logger.info(
+                "Canary mode enabled",
+                extra={
+                    "extra_fields": {
+                        "canary_version": secondary.version if secondary else None,
+                        "canary_weight": model_manager.traffic_router.canary_weight,
                     }
                 },
             )
@@ -104,6 +115,7 @@ def create_app() -> FastAPI:
     # Register routes
     app.include_router(health.router, tags=["health"])
     app.include_router(inference.router, tags=["inference"])
+    app.include_router(admin.router)
 
     # Metrics endpoint
     @app.get("/metrics", include_in_schema=False)

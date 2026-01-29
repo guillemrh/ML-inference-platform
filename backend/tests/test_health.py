@@ -17,7 +17,7 @@ from app.main import create_app
 def client():
     """
     Test client fixture.
-    
+
     Creates a fresh FastAPI test client for each test.
     """
     app = create_app()
@@ -27,12 +27,12 @@ def client():
 def test_health_check_returns_ok(client):
     """
     Test that /health returns 200 with correct status.
-    
+
     This is the most critical test - if this fails, the service
     cannot be deployed or load balanced.
     """
     response = client.get("/health")
-    
+
     assert response.status_code == 200
     assert response.json() == {"status": "ok"}
 
@@ -40,15 +40,17 @@ def test_health_check_returns_ok(client):
 def test_health_check_is_fast(client):
     """
     Test that /health responds quickly.
-    
+
     Health checks must be fast (<100ms) to avoid false positives
     in load balancer health probes.
     """
     import time
-    
+
     start = time.time()
     response = client.get("/health")
     duration_ms = (time.time() - start) * 1000
-    
+
     assert response.status_code == 200
-    assert duration_ms < 100, f"Health check took {duration_ms:.2f}ms (should be <100ms)"
+    assert (
+        duration_ms < 100
+    ), f"Health check took {duration_ms:.2f}ms (should be <100ms)"
