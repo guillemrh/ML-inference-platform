@@ -263,14 +263,36 @@ See [CLAUDE.md](CLAUDE.md) for full project context and [.agents/](.agents/) for
 - [x] CI pipeline (GitHub Actions)
 - [x] Docker-first development workflow
 
-### In Progress
-- [ ] Model versioning (explicit version tracking in responses)
+### Stage 1: Shadow Mode (Challenger Pattern)
+- [x] ShadowRunner service (parallel execution, timeout handling)
+- [x] ModelManager (primary + shadow lifecycle)
+- [x] Shadow metrics (agreement rate, latency diff, error/timeout counters)
+- [x] Configuration (env-based toggle, model paths, timeout)
+- [x] Tests (39 passing — unit, integration, shadow-specific)
+- [x] E2E validation with identical model — 100% agreement, infrastructure confirmed working
+- [x] E2E validation with real challenger (RandomForest v2 vs LogisticRegression v1):
+  <!-- 500 requests, 100% HTTP success. 99.6% prediction agreement (2 edge-case divergences).
+       v2 latency 85x slower (25.5ms avg vs 0.3ms) — blocker for promotion.
+       Shadow mode correctly surfaced the latency regression before any user impact. -->
 
-### Planned
-- [ ] Shadow mode (challenger model pattern)
-- [ ] Canary deployments (gradual traffic shifting)
-- [ ] Distributed tracing (OpenTelemetry + Jaeger)
-- [ ] Model registry service
+### Stage 2: Canary Deployments
+- [ ] TrafficRouter (weight-based request routing)
+- [ ] Rollout configuration (traffic split percentages)
+- [ ] Per-version metrics (latency, error rate, prediction distribution)
+- [ ] Rollback triggers (auto-rollback on error spike)
+- [ ] API-driven traffic control (`POST /admin/traffic-split`)
+
+### Stage 3: Distributed Tracing (OpenTelemetry + Jaeger)
+- [ ] OpenTelemetry SDK instrumentation (FastAPI, model inference)
+- [ ] Jaeger trace collection and visualization
+- [ ] Custom spans (model loading, inference, shadow execution)
+- [ ] Trace-metric correlation (link trace IDs to Prometheus)
+
+### Stage 4: Model Registry Service
+- [ ] Registry API (`GET /models/{name}/active`, `POST /models/{name}/promote`)
+- [ ] Model artifact storage
+- [ ] Metadata DB (versions, promotion history, rollback points)
+- [ ] Cache layer (inference service caches loaded models)
 
 ---
 
@@ -282,7 +304,7 @@ This roadmap is designed to progressively answer the hard questions from "Why Th
 
 ### Stage 1: Shadow Mode (Challenger Pattern)
 
-**Status:** Next up
+**Status:** Complete
 
 **What it is:**
 Run a "shadow" model alongside the primary model. Both receive the same input, but only the primary model's prediction is returned to the user. The shadow model's prediction is logged for comparison.

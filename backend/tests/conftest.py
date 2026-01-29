@@ -9,13 +9,12 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
 import pytest
-from app.models import get_model
+from app.services import get_model_manager
 
 
 @pytest.fixture(scope="session", autouse=True)
 def load_model():
-    """Load model before running tests."""
-    model = get_model()
-    if not model.is_loaded:
-        model.load()
+    """Load models before running tests."""
+    model_manager = get_model_manager()
+    model_manager.load_all()
     yield

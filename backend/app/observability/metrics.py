@@ -48,6 +48,31 @@ MODEL_LOADED = Gauge(
     "Whether the model is loaded (1) or not (0)",
 )
 
+# Shadow Mode Metrics
+SHADOW_PREDICTIONS_TOTAL = Counter(
+    "shadow_predictions_total",
+    "Total shadow model predictions",
+    ["status"],  # "success", "error", "timeout"
+)
+
+SHADOW_INFERENCE_DURATION_SECONDS = Histogram(
+    "shadow_inference_duration_seconds",
+    "Shadow model inference duration in seconds",
+    buckets=[0.001, 0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5],
+)
+
+SHADOW_PREDICTION_AGREEMENT = Counter(
+    "shadow_prediction_agreement_total",
+    "Count of predictions where shadow agreed/disagreed with primary",
+    ["agreed"],  # "true" or "false"
+)
+
+SHADOW_LATENCY_DIFF_SECONDS = Histogram(
+    "shadow_latency_diff_seconds",
+    "Difference between shadow and primary latency (shadow - primary)",
+    buckets=[-0.1, -0.05, -0.01, 0, 0.01, 0.05, 0.1, 0.25, 0.5],
+)
+
 
 def set_model_info(version: str, is_loaded: bool) -> None:
     """
@@ -73,3 +98,30 @@ def record_prediction(label: str, duration_seconds: float) -> None:
     """
     PREDICTIONS_TOTAL.labels(label=label).inc()
     INFERENCE_DURATION_SECONDS.observe(duration_seconds)
+
+
+def record_shadow_result(
+    status: str,
+    duration_seconds: float | None = None,
+    agreed: bool | None = None,
+    latency_diff_seconds: float | None = None,
+) -> None:
+    """
+    Record shadow model execution result.
+
+    Args:
+        status: Result status ("success", "error", "timeout")
+        duration_seconds: Shadow model inference time (if successful)
+        agreed: Whether shadow agreed with primary (if successful)
+        latency_diff_seconds: Shadow latency minus primary latency
+    """
+    SHADOW_PREDICTIONS_TOTAL.labels(status=status).inc()
+
+    if duration_seconds is not None:
+        SHADOW_INFERENCE_DURATION_SECONDS.observe(duration_seconds)
+
+    if agreed is not None:
+        SHADOW_PREDICTION_AGREEMENT.labels(agreed=str(agreed).lower()).inc()
+
+    if latency_diff_seconds is not None:
+        SHADOW_LATENCY_DIFF_SECONDS.observe(latency_diff_seconds)
