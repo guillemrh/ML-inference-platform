@@ -35,7 +35,11 @@ class ModelManager:
     @property
     def shadow_enabled(self) -> bool:
         """Check if shadow mode is enabled and shadow model is loaded."""
-        return settings.shadow_enabled and self._shadow is not None and self._shadow.is_loaded
+        return (
+            settings.shadow_enabled
+            and self._shadow is not None
+            and self._shadow.is_loaded
+        )
 
     def load_primary(self) -> None:
         """

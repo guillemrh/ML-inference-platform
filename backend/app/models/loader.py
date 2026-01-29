@@ -144,5 +144,3 @@ class ReactorModel:
             "probability": probability,
             "label": "anomaly" if prediction == 1 else "normal",
         }
-
-

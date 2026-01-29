@@ -60,7 +60,11 @@ async def lifespan(app: FastAPI):
             shadow = model_manager.shadow
             logger.info(
                 "Shadow mode enabled",
-                extra={"extra_fields": {"shadow_version": shadow.version if shadow else None}},
+                extra={
+                    "extra_fields": {
+                        "shadow_version": shadow.version if shadow else None
+                    }
+                },
             )
     except ModelLoadError as e:
         logger.error(

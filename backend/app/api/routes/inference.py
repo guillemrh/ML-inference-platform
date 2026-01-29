@@ -68,9 +68,11 @@ async def predict(request: PredictRequest) -> PredictResponse:
                         status="success",
                         duration_seconds=comparison.shadow.latency_ms / 1000,
                         agreed=comparison.predictions_agree,
-                        latency_diff_seconds=comparison.latency_diff_ms / 1000
-                        if comparison.latency_diff_ms
-                        else None,
+                        latency_diff_seconds=(
+                            comparison.latency_diff_ms / 1000
+                            if comparison.latency_diff_ms
+                            else None
+                        ),
                     )
                 elif comparison.shadow.error and "timed out" in comparison.shadow.error:
                     record_shadow_result(status="timeout")
@@ -106,7 +108,9 @@ async def predict(request: PredictRequest) -> PredictResponse:
 
     # Record primary model metrics
     latency_seconds = latency_ms / 1000
-    record_prediction(label=prediction_result["label"], duration_seconds=latency_seconds)
+    record_prediction(
+        label=prediction_result["label"], duration_seconds=latency_seconds
+    )
 
     logger.info(
         "Prediction completed",

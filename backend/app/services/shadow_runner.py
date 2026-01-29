@@ -212,13 +212,15 @@ class ShadowRunner:
         }
 
         if comparison.shadow.success:
-            extra_fields.update({
-                "shadow_prediction": comparison.shadow.prediction,
-                "shadow_probability": comparison.shadow.probability,
-                "shadow_latency_ms": comparison.shadow.latency_ms,
-                "predictions_agree": comparison.predictions_agree,
-                "latency_diff_ms": comparison.latency_diff_ms,
-            })
+            extra_fields.update(
+                {
+                    "shadow_prediction": comparison.shadow.prediction,
+                    "shadow_probability": comparison.shadow.probability,
+                    "shadow_latency_ms": comparison.shadow.latency_ms,
+                    "predictions_agree": comparison.predictions_agree,
+                    "latency_diff_ms": comparison.latency_diff_ms,
+                }
+            )
 
             if not comparison.predictions_agree:
                 extra_fields["features"] = features
