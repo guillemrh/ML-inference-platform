@@ -25,6 +25,10 @@ services:
       - SHADOW_TIMEOUT_MS=500
       # Canary settings
       - CANARY_WEIGHT=10
+      # Tracing
+      - TRACING_ENABLED=true
+      - OTLP_ENDPOINT=http://jaeger:4317
+      - TRACE_SAMPLE_RATE=1.0
     volumes:
       # Mount code for development (hot reload)
       - ./backend/app:/app/app
@@ -55,6 +59,16 @@ services:
     restart: unless-stopped
     depends_on:
       - backend
+
+  jaeger:
+    image: jaegertracing/all-in-one:1.53
+    container_name: ml-inference-jaeger
+    ports:
+      - "16687:16686"  # Jaeger UI
+      - "4318:4317"    # OTLP gRPC receiver
+    environment:
+      - COLLECTOR_OTLP_ENABLED=true
+    restart: unless-stopped
 
   grafana:
     image: grafana/grafana:10.2.0

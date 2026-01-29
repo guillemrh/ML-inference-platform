@@ -19,7 +19,13 @@ from app.api.routes import admin, health, inference
 from app.core.config import settings
 from app.core.logging import get_logger, setup_logging
 from app.models import ModelLoadError
-from app.observability import CANARY_WEIGHT, PrometheusMiddleware, set_model_info
+from app.observability import (
+    CANARY_WEIGHT,
+    PrometheusMiddleware,
+    set_model_info,
+    setup_tracing,
+    shutdown_tracing,
+)
 from app.services import get_model_manager
 
 logger = get_logger(__name__)
@@ -88,6 +94,7 @@ async def lifespan(app: FastAPI):
 
     # Shutdown
     logger.info("Application shutting down")
+    shutdown_tracing()
 
 
 def create_app() -> FastAPI:
@@ -111,6 +118,9 @@ def create_app() -> FastAPI:
 
     # Add Prometheus middleware
     app.add_middleware(PrometheusMiddleware)
+
+    # Setup tracing (auto-instruments FastAPI for HTTP spans)
+    setup_tracing(app)
 
     # Register routes
     app.include_router(health.router, tags=["health"])

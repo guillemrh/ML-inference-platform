@@ -20,6 +20,18 @@ class StructuredFormatter(logging.Formatter):
         if record.exc_info:
             log_data["exception"] = self.formatException(record.exc_info)
 
+        # Inject trace context if available
+        try:
+            from opentelemetry import trace
+
+            span = trace.get_current_span()
+            ctx = span.get_span_context()
+            if ctx and ctx.is_valid:
+                log_data["trace_id"] = format(ctx.trace_id, "032x")
+                log_data["span_id"] = format(ctx.span_id, "016x")
+        except ImportError:
+            pass
+
         # If the log call included extra fields, add them
         if hasattr(record, "extra_fields"):
             log_data.update(record.extra_fields)
