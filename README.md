@@ -296,10 +296,12 @@ See [CLAUDE.md](CLAUDE.md) for full project context and [.agents/](.agents/) for
 - [x] Tests (64 passing)
 
 ### Stage 4: Model Registry Service
-- [ ] Registry API (`GET /models/{name}/active`, `POST /models/{name}/promote`)
-- [ ] Model artifact storage
-- [ ] Metadata DB (versions, promotion history, rollback points)
-- [ ] Cache layer (inference service caches loaded models)
+- [x] Separate FastAPI microservice (`registry/`) with PostgreSQL
+- [x] Registry API (register, list, promote, rollback, active query, history)
+- [x] Metadata DB (SQLAlchemy ORM — models, model_history, active_deployments)
+- [x] Backend registry client with feature-flag toggle (`REGISTRY_ENABLED`)
+- [x] Startup-only discovery with env var fallback
+- [x] Tests (15 registry + 5 backend client, all passing)
 
 ---
 
@@ -310,6 +312,8 @@ See [CLAUDE.md](CLAUDE.md) for full project context and [.agents/](.agents/) for
 **Stage 2 — Canary Deployments:** Ran 1200 requests across three phases (10% → 50% → 0% rollback). Traffic routing matched configured weights at every step, and runtime weight changes via `POST /admin/traffic-split` took effect instantly without restart. v2 confirmed 20x slower (2.98ms vs 0.15ms). Promotion decision: **no** — same latency regression, now validated with real user-facing traffic.
 
 **Stage 3 — Distributed Tracing:** Added OpenTelemetry instrumentation with Jaeger. Every request now produces a full trace with spans for feature extraction, routing decisions, and model inference — trace IDs are injected into structured logs for correlation. Jaeger UI at `localhost:16687` shows the complete span hierarchy per request.
+
+**Stage 4 — Model Registry:** Separate FastAPI microservice with PostgreSQL for model metadata, versioning, and lifecycle management. Register models, promote to active, rollback to previous versions — all via API with full audit trail. Backend queries registry at startup to discover active models, with automatic fallback to env vars when registry is disabled or unreachable. Promote/rollback tested end-to-end.
 
 ---
 
@@ -449,9 +453,9 @@ Trace: abc-123
 
 ---
 
-### Stage 4: Model Registry Service (Future)
+### Stage 4: Model Registry Service
 
-**Status:** Future consideration
+**Status:** Complete
 
 **What it is:**
 A separate service that manages model artifacts, versions, and metadata. The inference service queries the registry to know which models to load.
