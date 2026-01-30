@@ -1,0 +1,17 @@
+# Web framework
+fastapi==0.109.0
+uvicorn==0.25.0
+pydantic-settings==2.1.0
+
+# Database
+sqlalchemy==2.0.25
+psycopg2-binary==2.9.9
+alembic==1.13.1
+
+# Testing
+pytest==7.4.4
+httpx==0.26.0
+
+# Linting
+ruff==0.1.11
+black==23.12.1

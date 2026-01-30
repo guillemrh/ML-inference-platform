@@ -62,18 +62,56 @@ class ModelManager:
         """Get the traffic router for canary deployments."""
         return self._traffic_router
 
+    def _resolve_from_registry(self, mode: str = "primary"):
+        """Query registry for model path and version. Returns (path, version) or None."""
+        if not settings.registry_enabled:
+            return None
+
+        from app.clients.registry_client import RegistryClient
+
+        client = RegistryClient(settings.registry_url)
+        info = client.get_active_model(settings.model_name, mode)
+        if info:
+            logger.info(
+                "Using model from registry",
+                extra={
+                    "extra_fields": {
+                        "model_id": info.model_id,
+                        "version": info.version,
+                        "mode": mode,
+                    }
+                },
+            )
+            return info.file_path, info.version
+        logger.warning(
+            "Registry returned no active model, falling back to env vars",
+            extra={"extra_fields": {"name": settings.model_name, "mode": mode}},
+        )
+        return None
+
     def load_primary(self) -> None:
         """
         Load the primary model.
 
+        Queries registry if enabled, falls back to env vars.
+
         Raises:
             ModelLoadError: If model fails to load.
         """
+        resolved = self._resolve_from_registry("primary")
+        model_path = resolved[0] if resolved else settings.model_path
+        model_version = resolved[1] if resolved else settings.model_version
+
         self._primary = ReactorModel(name="primary")
-        self._primary.load(settings.model_path, settings.model_version)
+        self._primary.load(model_path, model_version)
         logger.info(
             "Primary model loaded",
-            extra={"extra_fields": {"version": self._primary.version}},
+            extra={
+                "extra_fields": {
+                    "version": self._primary.version,
+                    "source": "registry" if resolved else "env",
+                }
+            },
         )
 
     def load_secondary(self) -> None:
@@ -88,10 +126,14 @@ class ModelManager:
             return
 
         try:
-            self._secondary = ReactorModel(name="secondary")
-            self._secondary.load(
-                settings.secondary_model_path, settings.secondary_model_version
+            resolved = self._resolve_from_registry(
+                "shadow" if settings.deployment_mode == "shadow" else "canary"
             )
+            sec_path = resolved[0] if resolved else settings.secondary_model_path
+            sec_version = resolved[1] if resolved else settings.secondary_model_version
+
+            self._secondary = ReactorModel(name="secondary")
+            self._secondary.load(sec_path, sec_version)
             logger.info(
                 "Secondary model loaded",
                 extra={

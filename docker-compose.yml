@@ -29,6 +29,10 @@ services:
       - TRACING_ENABLED=true
       - OTLP_ENDPOINT=http://jaeger:4317
       - TRACE_SAMPLE_RATE=1.0
+      # Registry
+      - REGISTRY_ENABLED=false
+      - REGISTRY_URL=http://registry:8001
+      - MODEL_NAME=reactor_model
     volumes:
       # Mount code for development (hot reload)
       - ./backend/app:/app/app
@@ -86,9 +90,56 @@ services:
     depends_on:
       - prometheus
 
+  postgres:
+    image: postgres:16-alpine
+    container_name: ml-inference-postgres
+    ports:
+      - "5432:5432"
+    environment:
+      - POSTGRES_USER=registry
+      - POSTGRES_PASSWORD=registry_password
+      - POSTGRES_DB=model_registry
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U registry -d model_registry"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 5s
+
+  registry:
+    build:
+      context: ./registry
+      dockerfile: Dockerfile
+    container_name: ml-model-registry
+    ports:
+      - "8001:8001"
+    environment:
+      - APP_NAME=ml-model-registry
+      - ENVIRONMENT=development
+      - LOG_LEVEL=INFO
+      - DATABASE_URL=postgresql://registry:registry_password@postgres:5432/model_registry
+    volumes:
+      - ./registry/app:/app/app
+      - ./registry/tests:/app/tests
+      - ./models:/app/models
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8001/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+
 volumes:
   prometheus_data:
   grafana_data:
+  postgres_data:
 
 networks:
   default:

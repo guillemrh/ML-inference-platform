@@ -45,6 +45,11 @@ class Settings(BaseSettings):
     # Canary
     canary_weight: int = 0  # Percentage of traffic routed to canary (0-100)
 
+    # Registry
+    registry_enabled: bool = False
+    registry_url: str = "http://registry:8001"
+    model_name: str = "reactor_model"
+
     # Tracing
     tracing_enabled: bool = True
     otlp_endpoint: str = "http://jaeger:4317"
