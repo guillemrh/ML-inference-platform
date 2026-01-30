@@ -74,7 +74,13 @@ class ModelManager:
         if info:
             logger.info(
                 "Using model from registry",
-                extra={"extra_fields": {"model_id": info.model_id, "version": info.version, "mode": mode}},
+                extra={
+                    "extra_fields": {
+                        "model_id": info.model_id,
+                        "version": info.version,
+                        "mode": mode,
+                    }
+                },
             )
             return info.file_path, info.version
         logger.warning(
@@ -100,7 +106,12 @@ class ModelManager:
         self._primary.load(model_path, model_version)
         logger.info(
             "Primary model loaded",
-            extra={"extra_fields": {"version": self._primary.version, "source": "registry" if resolved else "env"}},
+            extra={
+                "extra_fields": {
+                    "version": self._primary.version,
+                    "source": "registry" if resolved else "env",
+                }
+            },
         )
 
     def load_secondary(self) -> None:
@@ -115,7 +126,9 @@ class ModelManager:
             return
 
         try:
-            resolved = self._resolve_from_registry("shadow" if settings.deployment_mode == "shadow" else "canary")
+            resolved = self._resolve_from_registry(
+                "shadow" if settings.deployment_mode == "shadow" else "canary"
+            )
             sec_path = resolved[0] if resolved else settings.secondary_model_path
             sec_version = resolved[1] if resolved else settings.secondary_model_version
 

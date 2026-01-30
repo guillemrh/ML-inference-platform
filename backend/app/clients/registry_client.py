@@ -28,7 +28,9 @@ class RegistryClient:
         self._base_url = base_url.rstrip("/")
         self._timeout = timeout
 
-    def get_active_model(self, name: str, mode: str = "primary") -> RegistryModelInfo | None:
+    def get_active_model(
+        self, name: str, mode: str = "primary"
+    ) -> RegistryModelInfo | None:
         """Query the registry for the active model in a given deployment mode."""
         try:
             response = httpx.get(
