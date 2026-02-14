@@ -91,55 +91,95 @@ ml-inference-platform/
 │
 ├── .agents/                        # AI agents and skills
 │   ├── agents/                     # Subagent definitions
-│   │   ├── model-reviewer.md       # Reviews ML model code
-│   │   └── api-reviewer.md         # Reviews API code
+│   │   ├── model-reviewer.md
+│   │   └── api-reviewer.md
 │   └── skills/                     # Best practices documentation
 │       ├── coding/                 # Python standards, testing
 │       ├── inference/              # ML inference patterns
 │       └── workflows/              # Docker, PR workflow
 │
-├── backend/
+├── backend/                        # Main inference service
+│   ├── app/
+│   │   ├── main.py                 # FastAPI entrypoint
+│   │   ├── api/routes/
+│   │   │   ├── health.py           # Health check endpoint
+│   │   │   ├── inference.py        # POST /predict endpoint
+│   │   │   └── admin.py            # Traffic control endpoints
+│   │   ├── clients/
+│   │   │   └── registry_client.py  # Model registry client
+│   │   ├── core/
+│   │   │   ├── config.py           # Environment settings
+│   │   │   └── logging.py          # Structured JSON logging
+│   │   ├── models/
+│   │   │   └── loader.py           # Model loading utilities
+│   │   ├── schemas/
+│   │   │   └── inference.py        # Pydantic request/response models
+│   │   ├── services/
+│   │   │   ├── model_manager.py    # Model lifecycle management
+│   │   │   ├── shadow_runner.py    # Shadow mode execution
+│   │   │   └── traffic_router.py   # Canary traffic routing
+│   │   └── observability/
+│   │       ├── metrics.py          # Prometheus metrics
+│   │       ├── middleware.py       # Request metrics middleware
+│   │       └── tracing.py          # OpenTelemetry instrumentation
+│   ├── tests/
+│   │   ├── conftest.py
+│   │   ├── test_health.py
+│   │   ├── test_inference.py
+│   │   ├── test_shadow_mode.py
+│   │   ├── test_canary_mode.py
+│   │   ├── test_tracing.py
+│   │   ├── test_metrics.py
+│   │   └── test_registry_client.py
+│   ├── Dockerfile
+│   └── requirements.txt
+│
+├── registry/                       # Model registry microservice
 │   ├── app/
 │   │   ├── main.py
-│   │   ├── api/
-│   │   │   ├── __init__.py
-│   │   │   ├── routes/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── health.py
-│   │   │   │   └── inference.py
-│   │   │   └── deps.py
+│   │   ├── api/routes/
+│   │   │   ├── health.py
+│   │   │   └── models.py           # Registry CRUD endpoints
 │   │   ├── core/
-│   │   │   ├── __init__.py
 │   │   │   ├── config.py
 │   │   │   └── logging.py
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   ├── neural_net.py
-│   │   │   └── loader.py
+│   │   ├── db/
+│   │   │   ├── database.py         # SQLAlchemy setup
+│   │   │   └── models.py           # ORM models
 │   │   ├── schemas/
-│   │   │   ├── __init__.py
-│   │   │   └── inference.py
-│   │   ├── services/
-│   │   │   ├── __init__.py
-│   │   │   └── inference_service.py
-│   │   ├── observability/
-│   │   │    ├── __init__.py
-│   │   │    ├── metrics.py           # Prometheus metrics
-│   │   │    └── health.py            # internal health checks
-│   │   └── utils/
-│   │       └── __init__.py
+│   │   │   └── models.py           # Pydantic schemas
+│   │   └── services/
+│   │       └── registry.py         # Registry business logic
 │   ├── tests/
+│   │   ├── conftest.py
 │   │   ├── test_health.py
-│   │   └── test_inference.py
+│   │   └── test_models_api.py
 │   ├── Dockerfile
 │   └── requirements.txt
 │
-├── frontend/
-│   ├── app.py
-│   ├── Dockerfile
-│   └── requirements.txt
+├── models/                         # Model training scripts
+│   ├── train_reactor_model.py      # v1 LogisticRegression
+│   └── train_reactor_model_v2.py   # v2 RandomForest
 │
-├── docker-compose.yml
+├── monitoring/                     # Observability infrastructure
+│   ├── prometheus.yml              # Prometheus scrape config
+│   ├── loki/
+│   │   └── loki-config.yml         # Loki storage/retention config
+│   ├── promtail/
+│   │   └── promtail-config.yml     # Docker log shipping config
+│   └── grafana/provisioning/
+│       ├── datasources/
+│       │   ├── prometheus.yml
+│       │   └── loki.yml            # Loki + Jaeger trace linking
+│       └── dashboards/
+│           ├── dashboards.yml
+│           ├── ml-inference.json   # Metrics dashboard
+│           └── logs.json           # Logs dashboard
+│
+├── scripts/
+│   └── load_generator.py           # Traffic generation for testing
+│
+├── docker-compose.yml              # Full stack orchestration
 ├── README.md
 └── .gitignore
 
