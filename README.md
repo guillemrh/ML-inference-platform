@@ -91,55 +91,95 @@ ml-inference-platform/
 │
 ├── .agents/                        # AI agents and skills
 │   ├── agents/                     # Subagent definitions
-│   │   ├── model-reviewer.md       # Reviews ML model code
-│   │   └── api-reviewer.md         # Reviews API code
+│   │   ├── model-reviewer.md
+│   │   └── api-reviewer.md
 │   └── skills/                     # Best practices documentation
 │       ├── coding/                 # Python standards, testing
 │       ├── inference/              # ML inference patterns
 │       └── workflows/              # Docker, PR workflow
 │
-├── backend/
+├── backend/                        # Main inference service
+│   ├── app/
+│   │   ├── main.py                 # FastAPI entrypoint
+│   │   ├── api/routes/
+│   │   │   ├── health.py           # Health check endpoint
+│   │   │   ├── inference.py        # POST /predict endpoint
+│   │   │   └── admin.py            # Traffic control endpoints
+│   │   ├── clients/
+│   │   │   └── registry_client.py  # Model registry client
+│   │   ├── core/
+│   │   │   ├── config.py           # Environment settings
+│   │   │   └── logging.py          # Structured JSON logging
+│   │   ├── models/
+│   │   │   └── loader.py           # Model loading utilities
+│   │   ├── schemas/
+│   │   │   └── inference.py        # Pydantic request/response models
+│   │   ├── services/
+│   │   │   ├── model_manager.py    # Model lifecycle management
+│   │   │   ├── shadow_runner.py    # Shadow mode execution
+│   │   │   └── traffic_router.py   # Canary traffic routing
+│   │   └── observability/
+│   │       ├── metrics.py          # Prometheus metrics
+│   │       ├── middleware.py       # Request metrics middleware
+│   │       └── tracing.py          # OpenTelemetry instrumentation
+│   ├── tests/
+│   │   ├── conftest.py
+│   │   ├── test_health.py
+│   │   ├── test_inference.py
+│   │   ├── test_shadow_mode.py
+│   │   ├── test_canary_mode.py
+│   │   ├── test_tracing.py
+│   │   ├── test_metrics.py
+│   │   └── test_registry_client.py
+│   ├── Dockerfile
+│   └── requirements.txt
+│
+├── registry/                       # Model registry microservice
 │   ├── app/
 │   │   ├── main.py
-│   │   ├── api/
-│   │   │   ├── __init__.py
-│   │   │   ├── routes/
-│   │   │   │   ├── __init__.py
-│   │   │   │   ├── health.py
-│   │   │   │   └── inference.py
-│   │   │   └── deps.py
+│   │   ├── api/routes/
+│   │   │   ├── health.py
+│   │   │   └── models.py           # Registry CRUD endpoints
 │   │   ├── core/
-│   │   │   ├── __init__.py
 │   │   │   ├── config.py
 │   │   │   └── logging.py
-│   │   ├── models/
-│   │   │   ├── __init__.py
-│   │   │   ├── neural_net.py
-│   │   │   └── loader.py
+│   │   ├── db/
+│   │   │   ├── database.py         # SQLAlchemy setup
+│   │   │   └── models.py           # ORM models
 │   │   ├── schemas/
-│   │   │   ├── __init__.py
-│   │   │   └── inference.py
-│   │   ├── services/
-│   │   │   ├── __init__.py
-│   │   │   └── inference_service.py
-│   │   ├── observability/
-│   │   │    ├── __init__.py
-│   │   │    ├── metrics.py           # Prometheus metrics
-│   │   │    └── health.py            # internal health checks
-│   │   └── utils/
-│   │       └── __init__.py
+│   │   │   └── models.py           # Pydantic schemas
+│   │   └── services/
+│   │       └── registry.py         # Registry business logic
 │   ├── tests/
+│   │   ├── conftest.py
 │   │   ├── test_health.py
-│   │   └── test_inference.py
+│   │   └── test_models_api.py
 │   ├── Dockerfile
 │   └── requirements.txt
 │
-├── frontend/
-│   ├── app.py
-│   ├── Dockerfile
-│   └── requirements.txt
+├── models/                         # Model training scripts
+│   ├── train_reactor_model.py      # v1 LogisticRegression
+│   └── train_reactor_model_v2.py   # v2 RandomForest
 │
-├── docker-compose.yml
+├── monitoring/                     # Observability infrastructure
+│   ├── prometheus.yml              # Prometheus scrape config
+│   ├── loki/
+│   │   └── loki-config.yml         # Loki storage/retention config
+│   ├── promtail/
+│   │   └── promtail-config.yml     # Docker log shipping config
+│   └── grafana/provisioning/
+│       ├── datasources/
+│       │   ├── prometheus.yml
+│       │   └── loki.yml            # Loki + Jaeger trace linking
+│       └── dashboards/
+│           ├── dashboards.yml
+│           ├── ml-inference.json   # Metrics dashboard
+│           └── logs.json           # Logs dashboard
+│
+├── scripts/
+│   └── load_generator.py           # Traffic generation for testing
+│
+├── docker-compose.yml              # Full stack orchestration
 ├── README.md
 └── .gitignore
 
@@ -303,6 +343,14 @@ See [CLAUDE.md](CLAUDE.md) for full project context and [.agents/](.agents/) for
 - [x] Startup-only discovery with env var fallback
 - [x] Tests (15 registry + 5 backend client, all passing)
 
+### Stage 5: Centralized Logging (Grafana Loki)
+- [x] Loki log aggregation service (filesystem storage, 7-day retention)
+- [x] Promtail log shipper (Docker service discovery, JSON parsing)
+- [x] Grafana Loki datasource with Jaeger trace-log correlation (derived fields)
+- [x] Pre-built logs dashboard (log volume, errors, per-service breakdown, live tail)
+- [x] E2E verification: trace_id queryable in Loki from prediction requests
+- [x] No application code changes — pure infrastructure integration
+
 ---
 
 ## Stage Results
@@ -314,6 +362,8 @@ See [CLAUDE.md](CLAUDE.md) for full project context and [.agents/](.agents/) for
 **Stage 3 — Distributed Tracing:** Added OpenTelemetry instrumentation with Jaeger. Every request now produces a full trace with spans for feature extraction, routing decisions, and model inference — trace IDs are injected into structured logs for correlation. Jaeger UI at `localhost:16687` shows the complete span hierarchy per request.
 
 **Stage 4 — Model Registry:** Separate FastAPI microservice with PostgreSQL for model metadata, versioning, and lifecycle management. Register models, promote to active, rollback to previous versions — all via API with full audit trail. Backend queries registry at startup to discover active models, with automatic fallback to env vars when registry is disabled or unreachable. Promote/rollback tested end-to-end.
+
+**Stage 5 — Centralized Logging:** Added Grafana Loki + Promtail to complete the three pillars of observability (metrics, traces, logs). Promtail discovers all Docker containers via socket and ships structured JSON logs to Loki. Grafana's Loki datasource includes derived fields that link `trace_id` directly to Jaeger — click a trace ID in any log line to jump to the full span hierarchy. Logs dashboard at `localhost:3001` provides log volume by level, error filtering, per-service breakdown, and live tail. Zero application code changes — all integration at infrastructure level.
 
 ---
 
@@ -495,6 +545,47 @@ Inference Service → Model Registry → "What's the current primary model?"
 
 ---
 
+### Stage 5: Centralized Logging (Grafana Loki)
+
+**Status:** Complete
+
+**What it is:**
+Centralized log aggregation using Grafana Loki + Promtail. All container logs are collected, parsed, and queryable in Grafana with trace-log correlation.
+
+```
+Docker containers → Promtail (Docker socket discovery) → Loki → Grafana
+                                                                    ↓
+                                                          Click trace_id → Jaeger
+```
+
+**Why it matters:**
+- Completes the **three pillars of observability**: metrics (Prometheus), traces (Jaeger), logs (Loki)
+- Query logs by level, service, trace_id without SSH-ing into containers
+- Trace-log correlation: click a trace_id in any log to jump to the full Jaeger trace
+- Zero application code changes — pure infrastructure integration
+
+**What you'll learn:**
+- Log aggregation architecture (shipper → store → query)
+- Promtail pipeline stages (JSON parsing, label extraction)
+- Loki's low-cardinality label model vs high-cardinality detected fields
+- Grafana derived fields for cross-datasource linking
+
+**Key components built:**
+| Component | Purpose |
+|-----------|---------|
+| Loki | Log storage with LogQL query language |
+| Promtail | Docker service discovery + log shipping |
+| Grafana datasource | Loki with derived fields linking trace_id → Jaeger |
+| Logs dashboard | Volume by level, errors, per-service breakdown, live tail |
+
+**Success criteria:**
+- All container logs queryable in Grafana via Loki
+- Can filter by level, container, and trace_id
+- Clicking trace_id in logs opens the corresponding Jaeger trace
+- Pre-built dashboard loads with all panels populated
+
+---
+
 ### Roadmap Summary
 
 | Stage | Focus | Key Question Answered |
@@ -503,8 +594,9 @@ Inference Service → Model Registry → "What's the current primary model?"
 | 2. Canary | Safe rollout | "Does the new model work for real users?" |
 | 3. Tracing | Debuggability | "Why was this specific request slow/broken?" |
 | 4. Registry | Dynamic management | "How do we manage models without redeploying?" |
+| 5. Logging | Full observability | "What happened across all services for this request?" |
 
-Each stage builds on the previous. Shadow mode is prerequisite for canary (you should shadow first). Tracing becomes valuable once you have multiple code paths (shadow + canary). Registry is optional but enables more sophisticated patterns.
+Each stage builds on the previous. Shadow mode is prerequisite for canary (you should shadow first). Tracing becomes valuable once you have multiple code paths (shadow + canary). Registry is optional but enables more sophisticated patterns. Centralized logging ties everything together — metrics tell you *what*, traces tell you *where*, logs tell you *why*.
 
 ---
 

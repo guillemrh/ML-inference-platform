@@ -90,6 +90,34 @@ services:
     depends_on:
       - prometheus
 
+  loki:
+    image: grafana/loki:2.9.3
+    container_name: ml-inference-loki
+    ports:
+      - "3100:3100"
+    volumes:
+      - ./monitoring/loki/loki-config.yml:/etc/loki/local-config.yaml:ro
+      - loki_data:/loki
+    command: -config.file=/etc/loki/local-config.yaml
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "wget", "--no-verbose", "--tries=1", "--spider", "http://localhost:3100/ready"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+      start_period: 10s
+
+  promtail:
+    image: grafana/promtail:2.9.3
+    container_name: ml-inference-promtail
+    volumes:
+      - ./monitoring/promtail/promtail-config.yml:/etc/promtail/config.yml:ro
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    command: -config.file=/etc/promtail/config.yml
+    restart: unless-stopped
+    depends_on:
+      - loki
+
   postgres:
     image: postgres:16-alpine
     container_name: ml-inference-postgres
@@ -140,6 +168,7 @@ volumes:
   prometheus_data:
   grafana_data:
   postgres_data:
+  loki_data:
 
 networks:
   default:
